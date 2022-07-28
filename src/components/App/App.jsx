@@ -1,5 +1,7 @@
-import React, { PureComponent } from 'react';
-import { getInfoFromApi } from '../../utils/Api';
+import axios from 'axios';
+import { useState, useEffect } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { Wrap } from './App.styled';
 import { SeacrhBar } from '../Searchbar/Searchbar';
 import { ImageGallery } from '../ImageGallery/ImageGallery';
@@ -7,86 +9,71 @@ import { ButtonShowMore } from '../Button/Button';
 import { Loader } from '../Loader/Loader';
 import { Modal } from '../Modal/Modal';
 
-export class App extends PureComponent {
-  state = {
-    queryString: '',
-    page: 1,
-    images: [],
-    modalCard: null,
-    status: 'idle',
-    showModal: false,
-    totalHits: 0,
-  };
+export const App = () => {
+  const [queryString, setQueryString] = useState('');
+  const [page, setPage] = useState(1);
+  const [images, setImages] = useState([]);
+  const [modalCard, setModalCard] = useState(null);
+  const [status, setStatus] = useState('idle');
+  const [showModal, setShowModal] = useState(false);
 
-  async componentDidUpdate(_, prevState) {
-    const { queryString, page } = this.state;
-
-    if (prevState.queryString !== queryString || prevState.page !== page) {
-      try {
-        this.setState({ status: 'pending' });
-        const response = await getInfoFromApi(queryString, page);
-        this.setState(prevState => {
-          return {
-            images: [...prevState.images, ...response],
-            status: 'resolved',
-          };
-        });
-      } catch (error) {
-        this.setState({ status: 'rejected' });
-        console.log(error);
-      }
+  useEffect(() => {
+    if (queryString === '') {
+      return;
     }
-  }
+    const getInfoFromApi = async (queryString, page) => {
+      const respons = await axios(
+        `https://pixabay.com/api/?q=${queryString}&page=${page}&key=27491593-aa922f21d022df769349f5779&image_type=photo&orientation=horizontal&per_page=12`
+      );
+      return respons.data.hits;
+    };
 
-  submitForm = ({ queryString }, { resetForm }) => {
+    try {
+      setStatus('pending');
+      getInfoFromApi(queryString, page).then(res => {
+        setImages(state => [...state, ...res]);
+        setStatus('resolved');
+      });
+    } catch (error) {
+      setStatus('rejected');
+    }
+  }, [page, queryString]);
+
+  const submitForm = ({ queryString }, { resetForm }) => {
     if (!queryString.trim()) {
+      toast('Query string is empty');
       resetForm();
       return;
     }
-    if (queryString === this.state.queryString) {
-      resetForm();
-      return;
-    }
-    this.setState({ images: [], page: 1, queryString: queryString });
+    setImages([]);
+    setPage(1);
+    setQueryString(queryString);
     resetForm();
   };
 
-  showMore = () => {
-    this.setState(prevState => {
-      return { page: prevState.page + 1 };
-    });
+  const showMore = () => {
+    setPage(state => state + 1);
   };
 
-  closeModal = () => {
-    this.setState({ showModal: false });
+  const openModal = id => {
+    setShowModal(true);
+    const modalCard = images.find(image => image.id === id);
+    setModalCard(modalCard);
   };
 
-  showModal = id => {
-    this.setState({ showModal: true });
-    const modalCard = this.state.images.find(image => image.id === id);
-    this.setState({ modalCard });
-  };
-
-  render() {
-    const { images, page, status, showModal, modalCard } = this.state;
-
-    return (
-      <Wrap>
-        <SeacrhBar submitForm={this.submitForm} />;
-        {status === 'resolved' && (
-          <ImageGallery images={images} showModal={this.showModal} />
-        )}
-        {status === 'resolved' && images.length / page === 12 && (
-          <ButtonShowMore showMore={this.showMore} />
-        )}
-        {status === 'pending' && <Loader />}
-        {status === 'rejected' && <h1>Please try again</h1>}
-        {showModal && (
-          <Modal modalCard={modalCard} closeModal={this.closeModal} />
-        )}
-      </Wrap>
-    );
-  }
-}
-
-// test
+  return (
+    <Wrap>
+      <SeacrhBar submitForm={submitForm} />;
+      {status === 'resolved' && (
+        <ImageGallery images={images} showModal={openModal} />
+      )}
+      {status === 'resolved' && images.length / page === 12 && (
+        <ButtonShowMore showMore={showMore} />
+      )}
+      {status === 'pending' && <Loader />}
+      {status === 'rejected' && <h1>Please try again</h1>}
+      {showModal && <Modal modalCard={modalCard} closeModal={setShowModal} />}
+      <ToastContainer autoClose={2000} />
+    </Wrap>
+  );
+};

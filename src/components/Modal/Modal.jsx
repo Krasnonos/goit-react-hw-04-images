@@ -1,51 +1,44 @@
 import { createPortal } from 'react-dom';
-import React, { PureComponent } from 'react';
+import { useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Overlay, ModalBlock } from './Modal.styled';
 
 const rootRef = document.querySelector('#modal-root');
 
-export class Modal extends PureComponent {
-  componentDidMount() {
+export const Modal = ({ closeModal, modalCard }) => {
+  useEffect(() => {
+    const closeModalByBackdrop = e => {
+      if (e.target === e.currentTarget) {
+        closeModal(false);
+      }
+    };
+
+    const closeModalByEsc = e => {
+      e.preventDefault();
+      if (e.code === 'Escape') {
+        closeModal(false);
+      }
+    };
+
     const modalRef = document.querySelector('[data-modal="wrap"]');
-    modalRef.addEventListener('click', this.closeModalByBackdrop);
-    window.addEventListener('keydown', this.closeModalByEsc);
-  }
+    modalRef.addEventListener('click', closeModalByBackdrop);
+    window.addEventListener('keydown', closeModalByEsc);
 
-  componentWillUnmount() {
-    const modalRef = document.querySelector('[data-modal="wrap"]');
-    modalRef.removeEventListener('click', this.closeModalByBackdrop);
-    window.removeEventListener('keydown', this.closeModalByEsc);
-  }
+    return () => {
+      modalRef.removeEventListener('click', closeModalByBackdrop);
+      window.removeEventListener('keydown', closeModalByEsc);
+    };
+  }, [closeModal]);
 
-  closeModalByBackdrop = e => {
-    if (e.target === e.currentTarget) {
-      this.props.closeModal();
-    }
-  };
-
-  closeModalByEsc = e => {
-    e.preventDefault();
-
-    if (e.code === 'Escape') {
-      this.props.closeModal();
-    }
-  };
-
-  render() {
-    return createPortal(
-      <Overlay data-modal="wrap">
-        <ModalBlock>
-          <img
-            src={this.props.modalCard.largeImageURL}
-            alt={this.props.modalCard.tags}
-          />
-        </ModalBlock>
-      </Overlay>,
-      rootRef
-    );
-  }
-}
+  return createPortal(
+    <Overlay data-modal="wrap">
+      <ModalBlock>
+        <img src={modalCard.largeImageURL} alt={modalCard.tags} />
+      </ModalBlock>
+    </Overlay>,
+    rootRef
+  );
+};
 
 Modal.propTypes = {
   modalCard: PropTypes.shape({
